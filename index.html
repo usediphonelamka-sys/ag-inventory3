@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AG Inventory</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="dark">
+
+<div class="box">
+  <h2>AG Inventory</h2>
+
+  <input id="email" placeholder="email">
+  <input id="password" type="password" placeholder="password">
+
+  <button id="loginBtn">Login</button>
+</div>
+
+<script type="module">
+import { auth, db } from "./firebase.js";
+import { signInWithEmailAndPassword } 
+  from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { doc, getDoc } 
+  from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+loginBtn.onclick = async () => {
+  try {
+    let res = await signInWithEmailAndPassword(auth, email.value, password.value);
+
+    let uid = res.user.uid;
+    let u = await getDoc(doc(db,"users",uid));
+
+    if(!u.exists()){
+      alert("User not registered");
+      return;
+    }
+
+    localStorage.setItem("role", u.data().role);
+    localStorage.setItem("loggedIn","yes");
+
+    location.href="dashboard.html";
+
+  } catch(err){
+    alert("Login failed");
+    console.log(err.message);
+  }
+};
+</script>
+
+</body>
+</html>

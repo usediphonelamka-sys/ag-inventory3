@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body class="dark">
+
+<header class="top">
+  <h2>AG Inventory</h2>
+  <button onclick="logout()">Logout</button>
+</header>
+
+<section class="card">
+  <input id="search" placeholder="Search">
+  <select id="filter">
+    <option value="">All</option>
+    <option>Battery</option>
+    <option>Display</option>
+  </select>
+</section>
+
+<section class="card">
+  <h3>📦 Inventory</h3>
+  <div id="inventory"></div>
+</section>
+
+<section class="card">
+  <h3>🔔 Out of Stock</h3>
+  <ul id="alerts"></ul>
+</section>
+
+<section class="card">
+  <h3>📊 Sales Summary</h3>
+  <div id="sales"></div>
+</section>
+
+<section class="card">
+  <button onclick="exportCSV()">⬇ Export CSV</button>
+  <button id="adminBtn" onclick="location.href='add.html'">➕ Add / Sell</button>
+</section>
+
+<script>
+if(localStorage.getItem("loggedIn")!=="yes"){
+  location.href="index.html";
+}
+</script>
+
+<script type="module">
+import { db } from "./firebase.js";
+import { collection, onSnapshot } 
+from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+let role = localStorage.getItem("role");
+if(role!=="admin") adminBtn.style.display="none";
+
+let data = [];
+
+onSnapshot(collection(db,"inventory"), snap=>{
+  data = [];
+  snap.forEach(x=>data.push({id:x.id,...x.data()}));
+  render();
+  alerts();
+});
+
+function render(){
+  let term = search.value.toLowerCase();
+  let f = filter.value;
+
+  inventory.innerHTML = "";
+
+  data
+  .filter(x=>!f || x.partType===f)
+  .filter(x=>JSON.stringify(x).toLowerCase().includes(term))
+  .forEach(x=>{
+    inventory.innerHTML += `
+      <div class="item ${x.qty==0?'out':''}">
+        ${x.partType} | ${x.model} — Qty: ${x.qty}
+      </div>
+    `;
+  });
+}
+
+search.oninput = render;
+filter.onchange = render;
+
+function alerts(){
+  alerts.innerHTML="";
+  data.filter(x=>x.qty==0).forEach(x=>{
+    alerts.innerHTML += `<li class="out">${x.partType} | ${x.model}</li>`;
+  });
+}
+
+onSnapshot(collection(db,"sales"), snap=>{
+  let today=0,month=0,year=0;
+  let now=new Date();
+
+  snap.forEach(d=>{
+    let x=d.data();
+    let t=new Date(x.time.seconds*1000);
+    if(t.toDateString()==now.toDateString()) today+=x.total;
+    if(t.getMonth()==now.getMonth()) month+=x.total;
+    if(t.getFullYear()==now.getFullYear()) year+=x.total;
+  });
+
+  sales.innerHTML=`Today ₹${today}<br>Month ₹${month}<br>Year ₹${year}`;
+});
+
+window.exportCSV = ()=>{
+  let csv="Part,Model,Qty\n";
+  data.forEach(x=>csv+=`${x.partType},${x.model},${x.qty}\n`);
+
+  let a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv]));
+  a.download="inventory.csv";
+  a.click();
+};
+</script>
+
+<script>
+function logout(){
+  localStorage.clear();
+  location.href="index.html";
+}
+</script>
+
+</body>
+</html>

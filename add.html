@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Add / Sell</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body class="dark">
+
+<header class="top">
+  <h2>Add / Sell Stock</h2>
+  <button onclick="location.href='dashboard.html'">Back</button>
+</header>
+
+<section class="card">
+  <input id="type" placeholder="Part Type e.g Display">
+  <input id="model" placeholder="Model e.g iPhone 13">
+  <input id="qty" type="number" placeholder="Qty">
+
+  <button id="add">Add Stock</button>
+  <button id="sell">Sell</button>
+</section>
+
+<script>
+if(localStorage.getItem("role")!=="admin")
+  location.href="dashboard.html";
+</script>
+
+<script type="module">
+import { db } from "./firebase.js";
+import { collection, addDoc, doc, getDocs, query, where, updateDoc, increment, serverTimestamp }
+from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+async function findItem(){
+  let q=query(collection(db,"inventory"),
+    where("partType","==",type.value),
+    where("model","==",model.value)
+  );
+  return await getDocs(q);
+}
+
+add.onclick = async ()=>{
+  let r = await findItem();
+
+  if(r.empty){
+    await addDoc(collection(db,"inventory"),{
+      partType:type.value,
+      model:model.value,
+      qty:Number(qty.value)
+    });
+  } else {
+    let id=r.docs[0].id;
+    await updateDoc(doc(db,"inventory",id),{
+      qty:increment(Number(qty.value))
+    });
+  }
+  alert("Stock added");
+};
+
+sell.onclick = async ()=>{
+  let r = await findItem();
+  if(r.empty) return alert("Not found");
+
+  let d=r.docs[0];
+  if(d.data().qty < qty.value) return alert("Not enough stock");
+
+  await updateDoc(doc(db,"inventory",d.id),{
+    qty:increment(-Number(qty.value))
+  });
+
+  await addDoc(collection(db,"sales"),{
+    part:type.value,
+    model:model.value,
+    qty:Number(qty.value),
+    total:0,
+    time:serverTimestamp()
+  });
+
+  alert("Sold");
+};
+</script>
+
+</body>
+</html>
